@@ -1,0 +1,59 @@
+name: CI
+
+on: [ workflow_dispatch ]
+
+env:
+  PACKAGE_NAME: aws-iot-securetunneling-localproxy
+
+jobs:
+  ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install apt-get dependencies
+        run: |
+          sudo apt-get install -y build-essential git python3-dev
+          sudo apt-get install -y wget tar zlib1g-dev libssl-dev openssl cmake
+          sudo apt-get clean -y
+      - name: Install boost
+        working-directory: ${{ github.workspace }}
+        run: |
+          wget https://boostorg.jfrog.io/artifactory/main/release/1.84.0/source/boost_1_84_0.tar.gz -O /tmp/boost.tar.gz
+          tar xzvf /tmp/boost.tar.gz
+          cd boost_1_84_0
+          ./bootstrap.sh
+          sudo ./b2 install link=static
+      - name: Install protobuf
+        working-directory: ${{ github.workspace }}
+        run: |
+          wget https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-all-3.17.3.tar.gz -O /tmp/protobuf-all-3.17.3.tar.gz
+          tar xzvf /tmp/protobuf-all-3.17.3.tar.gz
+          cd protobuf-3.17.3
+          mkdir build_make
+          cd build_make
+          cmake ../cmake
+          make
+          sudo make install
+      - name: install Catch2
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clone --branch v2.13.6 https://github.com/catchorg/Catch2.git
+          cd Catch2
+          mkdir build
+          cd build
+          cmake ../
+          make
+          sudo make install
+      - name: Building localproxy
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clone -b v3.1.2 --depth 1 https://github.com/aws-samples/aws-iot-securetunneling-localproxy.git
+          cd aws-iot-securetunneling-localproxy
+          mkdir build
+          cd build
+          cmake .. -DBUILD_TESTS=OFF
+          make
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: localproxy-ubuntu
+          path: ${{ github.workspace }}/aws-iot-securetunneling-localproxy/build/bin/localproxy
